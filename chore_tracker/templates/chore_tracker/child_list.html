@@ -1,0 +1,20 @@
+{% extends 'chore_tracker/base.html' %}
+
+{% block content %}
+  <h1>Children</h1>
+  <a href="{% url 'child_create' %}" class="btn btn-primary mb-3">Add Child</a>
+
+  <ul class="list-group">
+    {% for child in children %}
+      <li class="list-group-item">
+        {{ child.name }} (Age: {{ child.age }})
+        <a href="{% url 'child_edit' child.id %}" class="btn btn-sm btn-secondary">Edit</a>
+        <a href="{% url 'child_points' child.id %}" class="btn btn-sm btn-info">View Points</a>
+        <a href="{% url 'child_calendar' child.id %}" class="btn btn-sm btn-success">View Calendar</a>
+        <a href="{% url 'chore_graph' child.id %}" class="btn btn-sm btn-primary">View Graph</a>
+      </li>
+    {% empty %}
+      <li class="list-group-item">No children added yet.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}

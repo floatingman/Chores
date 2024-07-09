@@ -1,0 +1,80 @@
+{% extends 'chore_tracker/base.html' %}
+
+{% block content %}
+  <h1>Chore Completion Graph for {{ child.name }}</h1>
+
+  <div class="mb-3">
+    <label for="start-date" class="form-label">Start Date:</label>
+    <input type="date" id="start-date" class="form-control">
+  </div>
+  <div class="mb-3">
+    <label for="end-date" class="form-label">End Date:</label>
+    <input type="date" id="end-date" class="form-control">
+  </div>
+  <button id="update-graph" class="btn btn-primary mb-3">Update Graph</button>
+
+  <canvas id="chore-graph"></canvas>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    const ctx = document.getElementById('chore-graph').getContext('2d');
+    let choreChart;
+
+    function updateGraph() {
+      const startDate = document.getElementById('start-date').value;
+      const endDate = document.getElementById('end-date').value;
+
+      fetch(`/children/{{ child.id }}/graph/data/?start_date=${startDate}&end_date=${endDate}`)
+      .then(response => {
+        if (!response.ok) {
+          return response.json().then(err => { throw err; });
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Received data:', data);
+        if (choreChart) {
+          choreChart.destroy();
+        }
+        if (data.labels && data.labels.length > 0) {
+          choreChart = new Chart(ctx, {
+            type: 'line',
+            data: data,
+            options: {
+              responsive: true,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  title: {
+                    display: true,
+                    text: 'Number of Chores Completed'
+                  }
+                },
+                x: {
+                  title: {
+                    display: true,
+                    text: 'Date'
+                  }
+                }
+              }
+            }
+          });
+        } else {
+          console.log('No data available for the selected date range');
+          ctx.font = '20px Arial';
+          ctx.fillText('No data available for the selected date range', 10, 50);
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        ctx.font = '20px Arial';
+        ctx.fillText(`Error: ${error.error || 'Unknown error occurred'}`, 10, 50);
+      });
+    }
+
+    document.getElementById('update-graph').addEventListener('click', updateGraph);
+
+    // Initial graph load
+    updateGraph();
+  </script>
+{% endblock %}

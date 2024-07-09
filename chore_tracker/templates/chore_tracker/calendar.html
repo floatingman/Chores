@@ -1,0 +1,39 @@
+{% extends 'chore_tracker/base.html' %}
+
+{% block content %}
+  <h1>Points Calendar for {{ child.name }}</h1>
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <a href="{% url 'child_calendar_date' child.id prev_month.year prev_month.month %}" class="btn btn-primary">&lt; Previous Month</a>
+    <h2>{{ month|date:"F Y" }}</h2>
+    <a href="{% url 'child_calendar_date' child.id next_month.year next_month.month %}" class="btn btn-primary">Next Month &gt;</a>
+  </div>
+
+  <table class="table table-bordered">
+    <thead>
+    <tr>
+      <th>Mon</th>
+      <th>Tue</th>
+      <th>Wed</th>
+      <th>Thu</th>
+      <th>Fri</th>
+      <th>Sat</th>
+      <th>Sun</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for week in calendar_data %}
+      <tr>
+        {% for day in week %}
+          <td class="{% if day.points > 0 %}table-success{% endif %}">
+            {% if day.day %}
+              <strong>{{ day.day }}</strong><br>
+              Points: {{ day.points }}
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

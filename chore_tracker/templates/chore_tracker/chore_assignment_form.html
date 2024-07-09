@@ -1,0 +1,10 @@
+{% extends 'chore_tracker/base.html' %}
+
+{% block content %}
+  <h1>Assign Chore</h1>
+  <form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-primary">Assign Chore</button>
+  </form>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'chore_tracker/base.html' %}
+
+{% block content %}
+  <h1>Chore Assignments</h1>
+  <a href="{% url 'chore_assignment_create' %}" class="btn btn-primary mb-3">Assign Chore</a>
+  <ul class="list-group">
+    {% for assignment in assignments %}
+      <li class="list-group-item">
+        {{ assignment.child.name }} - {{ assignment.chore.name }}
+        {% if not assignment.completed %}
+          <form method="post" action="{% url 'chore_assignment_complete' assignment.pk %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-success">Complete</button>
+          </form>
+        {% else %}
+          <span class="badge bg-success">Completed</span>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="list-group-item">No chore assignments yet.</li>
+    {% endfor %}
+  </ul>
+{% endblock %}
