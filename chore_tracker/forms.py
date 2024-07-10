@@ -32,3 +32,17 @@ class ChoreAssignmentForm(forms.ModelForm):
             'date_assigned': forms.DateInput(attrs={'type': 'date'}),
             'date_completed': forms.DateInput(attrs={'type': 'date'}),
         }
+
+    def clean(self):
+        cleaned_data = super().clean()
+        completed = cleaned_data.get('completed')
+        date_completed = cleaned_data.get('date_completed')
+        date_assigned = cleaned_data.get('date_assigned')
+
+        if completed and not date_completed:
+            self.add_error('date_completed', "Date completed is required when the chore is marked as completed.")
+
+        if date_completed and date_assigned and date_completed < date_assigned:
+            self.add_error('date_completed', "Date completed cannot be earlier than the date assigned.")
+
+        return cleaned_data

@@ -11,6 +11,7 @@ urlpatterns = [
   path('children/<int:child_id>/graph/data/', views.ChoreGraphDataView.as_view(), name='chore_graph_data'),
   path('child/add/', views.ChildCreateView.as_view(), name='child_create'),
   path('child/<int:pk>/edit/', views.ChildUpdateView.as_view(), name='child_edit'),
+  path('children/<int:pk>/delete/', views.ChildDeleteView.as_view(), name='child_delete'),
 
   path('assignments/', views.ChoreAssignmentListView.as_view(), name='chore_assignment_list'),
   path('assignments/create/', views.ChoreAssignmentCreateView.as_view(), name='chore_assignment_create'),

@@ -1,24 +1,25 @@
 import calendar
+import logging
 from datetime import datetime, timedelta
 
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import connection
-from django.db.models import Count, F
+from django.db.models import Count
 from django.db.models.functions import TruncDate
 from django.http import JsonResponse
-from django.shortcuts import render, redirect, get_object_or_404
+from django.shortcuts import render, get_object_or_404
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views import View
-from django.views.generic import ListView
-from django.views.generic.edit import UpdateView, DeleteView
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 
-from .forms import ChildForm, ChoreForm, ChoreAssignmentForm
+from .forms import ChoreForm, ChoreAssignmentForm
 from .models import Child, Chore, ChoreAssignment
-import logging
 
 logger = logging.getLogger(__name__)
+
+
 class ChoreGraphView(View):
     def get(self, request, child_id):
         child = get_object_or_404(Child, pk=child_id)
@@ -100,124 +101,113 @@ class ChoreGraphDataView(View):
             return JsonResponse({'error': f'An error occurred: {str(e)}'}, status=500)
 
 
-class ChildListView(View):
-    def get(self, request):
-        children = Child.objects.all()
-        return render(request, 'chore_tracker/child_list.html',
-                      {'children': children})
+class ChildListView(ListView):
+    model = Child
+    template_name = 'chore_tracker/child_list.html'
+    context_object_name = 'children'
 
 
-class ChildCreateView(View):
-    def get(self, request):
-        form = ChildForm()
-        return render(request, 'chore_tracker/child_form.html', {'form': form})
-
-    def post(self, request):
-        form = ChildForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('child_list')
-        return render(request, 'chore_tracker/child_form.html', {'form': form})
+class ChildCreateView(CreateView):
+    model = Child
+    fields = ['name', 'age']
+    template_name = 'chore_tracker/child_form.html'
+    success_url = reverse_lazy('child_list')
 
 
 class ChildUpdateView(UpdateView):
     model = Child
-    form_class = ChildForm
+    fields = ['name', 'age']
     template_name = 'chore_tracker/child_form.html'
     success_url = reverse_lazy('child_list')
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = 'Edit Child'
-        return context
 
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        # You can add a success message here if you want
-        # messages.success(self.request, 'Child updated successfully.')
-        return response
+class ChildDeleteView(DeleteView):
+    model = Child
+    template_name = 'chore_tracker/child_confirm_delete.html'
+    success_url = reverse_lazy('child_list')
 
-
-class ChoreListView(View):
-    def get(self, request):
-        chores = Chore.objects.all()
-        return render(request, 'chore_tracker/chore_list.html', {'chores': chores})
+    def delete(self, request, *args, **kwargs):
+        messages.success(self.request, "Child was successfully deleted.")
+        return super().delete(request, *args, **kwargs)
 
 
-class ChoreCreateView(View):
-    def get(self, request):
-        form = ChoreForm()
-        return render(request, 'chore_tracker/chore_form.html', {'form': form})
-
-    def post(self, request):
-        form = ChoreForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('chore_list')
-        return render(request, 'chore_tracker/chore_form.html', {'form': form})
+class ChoreListView(ListView):
+    model = Chore
+    template_name = 'chore_tracker/chore_list.html'
+    context_object_name = 'chores'
 
 
-class ChoreAssignmentCreateView(View):
-    def get(self, request):
-        form = ChoreAssignmentForm()
-        return render(request, 'chore_tracker/chore_assignment_form.html',
-                      {'form': form})
+class ChoreCreateView(CreateView):
+    model = Chore
+    fields = ['name', 'description', 'points']
+    template_name = 'chore_tracker/chore_form.html'
+    success_url = reverse_lazy('chore_list')
 
-    def post(self, request):
-        form = ChoreAssignmentForm(request.POST)
-        if form.is_valid():
-            form.save()
-            return redirect('chore_assignment_list')
-        return render(request, 'chore_tracker/chore_assignment_form.html',
-                      {'form': form})
+
+class ChoreUpdateView(UpdateView):
+    model = Chore
+    form_class = ChoreForm
+    template_name = 'chore_tracker/chore_form.html'
+    success_url = reverse_lazy('chore_list')
+
+
+class ChoreDeleteView(DeleteView):
+    model = Chore
+    template_name = 'chore_tracker/chore_confirm_delete.html'
+    success_url = reverse_lazy('chore_list')
 
 
 class ChoreAssignmentListView(ListView):
     model = ChoreAssignment
     template_name = 'chore_tracker/chore_assignment_list.html'
     context_object_name = 'chore_assignments'
-    paginate_by = 10
 
     def get_queryset(self):
-        queryset = ChoreAssignment.objects.select_related('child', 'chore')
-
-        # Get the ordering from the URL parameters
+        queryset = super().get_queryset().select_related('child', 'chore')
         ordering = self.request.GET.get('order_by', '-date_assigned')
-
-        # Define allowed fields and their database representations
-        allowed_fields = {
-            'date_assigned': F('date_assigned'),
-            'child_name': F('child__name'),
-            'chore_name': F('chore__name'),
-            'completed': F('completed')
-        }
-
-        # Check if the ordering is allowed and add direction
-        order_field = ordering.lstrip('-')
-        if order_field in allowed_fields:
-            order_expression = allowed_fields[order_field]
-            if ordering.startswith('-'):
-                order_expression = order_expression.desc()
-            queryset = queryset.order_by(order_expression, '-id')
-        else:
-            # Default ordering if not specified or invalid
-            queryset = queryset.order_by('-date_assigned', '-id')
-
-        return queryset
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['current_ordering'] = self.request.GET.get('order_by', '-date_assigned')
-        return context
+        if ordering not in ['date_assigned', '-date_assigned', 'child_name', 'chore_name', 'completed']:
+            ordering = '-date_assigned'
+        if ordering == 'child_name':
+            return queryset.order_by('child__name', '-date_assigned')
+        elif ordering == 'chore_name':
+            return queryset.order_by('chore__name', '-date_assigned')
+        return queryset.order_by(ordering, '-date_assigned')
 
 
-class ChoreAssignmentCompleteView(View):
-    def post(self, request, pk):
-        assignment = get_object_or_404(ChoreAssignment, pk=pk)
-        assignment.completed = True
-        assignment.date_completed = timezone.now().date()
-        assignment.save()
-        return redirect('chore_assignment_list')
+class ChoreAssignmentCreateView(CreateView):
+    model = ChoreAssignment
+    form_class = ChoreAssignmentForm
+    template_name = 'chore_tracker/chore_assignment_form.html'
+    success_url = reverse_lazy('chore_assignment_list')
+
+    def form_invalid(self, form):
+        return self.render_to_response(self.get_context_data(form=form))
+
+
+class ChoreAssignmentUpdateView(UpdateView):
+    model = ChoreAssignment
+    form_class = ChoreAssignmentForm
+    template_name = 'chore_tracker/chore_assignment_form.html'
+    success_url = reverse_lazy('chore_assignment_list')
+
+
+class ChoreAssignmentDeleteView(DeleteView):
+    model = ChoreAssignment
+    template_name = 'chore_tracker/chore_assignment_confirm_delete.html'
+    success_url = reverse_lazy('chore_assignment_list')
+
+
+class ChoreAssignmentCompleteView(UpdateView):
+    model = ChoreAssignment
+    fields = ['completed', 'date_completed']
+
+    def form_valid(self, form):
+        form.instance.completed = True
+        form.instance.date_completed = form.cleaned_data.get('date_completed') or timezone.now().date()
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse_lazy('chore_assignment_list')
 
 
 class ChildPointsView(View):
@@ -290,22 +280,11 @@ class CalendarView(View):
         return render(request, 'chore_tracker/calendar.html', context)
 
 
-class ChoreUpdateView(UpdateView):
-    model = Chore
-    form_class = ChoreForm
-    template_name = 'chore_tracker/chore_form.html'
-    success_url = reverse_lazy('chore_list')
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = 'Edit Chore'
-        return context
 
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        messages.success(self.request,
-                         f'Chore "{self.object.name}" updated successfully.')
-        return response
+
+
+
 
 
 class ChoreAssignmentUpdateView(UpdateView):
@@ -314,43 +293,8 @@ class ChoreAssignmentUpdateView(UpdateView):
     template_name = 'chore_tracker/chore_assignment_form.html'
     success_url = reverse_lazy('chore_assignment_list')
 
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = 'Edit Chore Assignment'
-        return context
-
-    def form_valid(self, form):
-        response = super().form_valid(form)
-        messages.success(self.request, f'Chore assignment updated successfully.')
-        return response
-
 
 class ChoreAssignmentDeleteView(LoginRequiredMixin, DeleteView):
     model = ChoreAssignment
     template_name = 'chore_tracker/chore_assignment_confirm_delete.html'
     success_url = reverse_lazy('chore_assignment_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = 'Delete Chore Assignment'
-        return context
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(self.request, 'Chore assignment was successfully deleted.')
-        return super().delete(request, *args, **kwargs)
-
-
-class ChoreDeleteView(LoginRequiredMixin, DeleteView):
-    model = Chore
-    template_name = 'chore_tracker/chore_confirm_delete.html'
-    success_url = reverse_lazy('chore_list')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['title'] = 'Delete Chore'
-        return context
-
-    def delete(self, request, *args, **kwargs):
-        chore = self.get_object()
-        messages.success(self.request, f'Chore "{chore.name}" was successfully deleted.')
-        return super().delete(request, *args, **kwargs)
