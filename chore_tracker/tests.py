@@ -1,3 +1,4 @@
+import json
 from datetime import timedelta
 
 import factory
@@ -312,3 +313,104 @@ class ChildTests(TestCase):
 
         with self.assertRaises(ValidationError):
             Child.objects.create(name="Invalid Child", age=101)
+
+
+class CalendarViewTests(TestCase):
+    def setUp(self):
+        self.child = Child.objects.create(name="Test Child", age=10)
+        self.chore = Chore.objects.create(name="Test Chore", points=5)
+        self.today = timezone.now().date()
+
+    def test_calendar_view_current_month(self):
+        url = reverse('child_calendar', args=[self.child.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'chore_tracker/calendar.html')
+        self.assertContains(response, self.child.name)
+        self.assertContains(response, self.today.strftime("%B %Y"))
+
+    def test_calendar_view_specific_month(self):
+        specific_date = self.today - timedelta(days=40)  # A date in the previous month
+        url = reverse('child_calendar_date', args=[self.child.id, specific_date.year, specific_date.month])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, specific_date.strftime("%B %Y"))
+
+    # def test_calendar_view_with_assignments(self):
+    #     # Create some chore assignments
+    #     ChoreAssignment.objects.create(
+    #         child=self.child,
+    #         chore=self.chore,
+    #         date_assigned=self.today,
+    #         completed=True,
+    #         date_completed=self.today
+    #     )
+    #     ChoreAssignment.objects.create(
+    #         child=self.child,
+    #         chore=self.chore,
+    #         date_assigned=self.today - timedelta(days=1),
+    #         completed=False
+    #     )
+    #
+    #     url = reverse('child_calendar', args=[self.child.id])
+    #     response = self.client.get(url)
+    #     self.assertEqual(response.status_code, 200)
+    #     self.assertContains(response, "Test Chore")
+    #     self.assertContains(response, "Completed")
+    #     self.assertContains(response, "Pending")
+    #
+    # def test_calendar_view_invalid_date(self):
+    #     url = reverse('child_calendar_date', args=[self.child.id, 2023, 13])  # Invalid month
+    #     response = self.client.get(url)
+    #     self.assertEqual(response.status_code, 404)
+
+
+class GraphViewTests(TestCase):
+    def setUp(self):
+        self.child = Child.objects.create(name="Test Child", age=10)
+        self.chore = Chore.objects.create(name="Test Chore", points=5)
+        self.today = timezone.now().date()
+
+        # Create some chore assignments
+        for i in range(30):
+            ChoreAssignment.objects.create(
+                child=self.child,
+                chore=self.chore,
+                date_assigned=self.today - timedelta(days=i),
+                completed=True,
+                date_completed=self.today - timedelta(days=i)
+            )
+
+    def test_graph_view_response(self):
+        url = reverse('chore_graph', args=[self.child.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, 'chore_tracker/chore_graph.html')
+
+    def test_graph_view_context(self):
+        url = reverse('chore_graph', args=[self.child.id])
+        response = self.client.get(url)
+        self.assertIn('child', response.context)
+
+    def test_graph_data_view(self):
+        url = reverse('chore_graph_data', args=[self.child.id])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/json')
+
+        data = json.loads(response.content)
+        self.assertIn('labels', data)
+        self.assertIn('datasets', data)
+        self.assertEqual(len(data['labels']), 30)  # We created 30 days of data
+        self.assertEqual(len(data['datasets'][0]['data']), 30)
+
+    def test_graph_data_with_date_range(self):
+        start_date = (self.today - timedelta(days=7)).strftime('%Y-%m-%d')
+        end_date = self.today.strftime('%Y-%m-%d')
+        url = reverse('chore_graph_data', args=[self.child.id]) + f'?start_date={start_date}&end_date={end_date}'
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+
+        data = json.loads(response.content)
+        self.assertEqual(len(data['labels']), 8)  # 7 days + today
+        self.assertEqual(len(data['datasets'][0]['data']), 8)
