@@ -1,23 +1,27 @@
 {% extends 'chore_tracker/base.html' %}
 
 {% block content %}
-  <div class="container mt-4">
-    <h1>Chores</h1>
-    <a href="{% url 'chore_create' %}" class="btn btn-primary mb-3">Add Chore</a>
-    <ul class="list-group">
-      {% for chore in chores %}
-        <li class="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <strong>{{ chore.name }}</strong> - Points: {{ chore.points }}
-            <p class="mb-0 text-muted">{{ chore.description|truncatechars:50 }}</p>
-          </div>
-          <div>
-            <a href="{% url 'chore_edit' chore.id %}" class="btn btn-sm btn-outline-secondary">Edit</a>
-          </div>
-        </li>
-      {% empty %}
-        <li class="list-group-item">No chores added yet.</li>
-      {% endfor %}
-    </ul>
-  </div>
+    <div class="container mt-4">
+        <h1>Chores</h1>
+        <a href="{% url 'chore_create' %}" class="btn btn-primary mb-3">Add Chore</a>
+        <div class="list-group">
+            {% for chore in chores %}
+                <div class="list-group-item">
+                    <div class="d-flex w-100 justify-content-between align-items-center">
+                        <h5 class="mb-1">{{ chore.name }}</h5>
+                        <span class="badge bg-primary">Points: {{ chore.points }}</span>
+                    </div>
+                    <p class="mb-1">{{ chore.description|truncatechars:100 }}</p>
+                    <div class="mt-2">
+                        <a href="{% url 'chore_edit' chore.id %}" class="btn btn-sm btn-outline-primary">Edit</a>
+                        <a href="{% url 'chore_delete' chore.id %}" class="btn btn-sm btn-outline-danger">Delete</a>
+                    </div>
+                </div>
+            {% empty %}
+                <div class="list-group-item">
+                    <p class="mb-0">No chores added yet.</p>
+                </div>
+            {% endfor %}
+        </div>
+    </div>
 {% endblock %}
