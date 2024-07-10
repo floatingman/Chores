@@ -1,31 +1,13 @@
 {% extends 'chore_tracker/base.html' %}
 
 {% block content %}
-  <h1>Points for {{ child.name }}</h1>
-  <div class="card-deck">
-    <div class="card mb-4">
-      <div class="card-body">
-        <h5 class="card-title">Daily Points</h5>
-        <p class="card-text display-4">{{ daily_points }}</p>
-      </div>
+    <div class="container mt-4">
+        <h1>Points for {{ child.name }}</h1>
+        <ul class="list-group">
+            <li class="list-group-item">Daily Points: {{ daily_points }}</li>
+            <li class="list-group-item">Weekly Points: {{ weekly_points }}</li>
+            <li class="list-group-item">Monthly Points: {{ monthly_points }}</li>
+            <li class="list-group-item">Total Points: {{ total_points }}</li>
+        </ul>
     </div>
-    <div class="card mb-4">
-      <div class="card-body">
-        <h5 class="card-title">Weekly Points</h5>
-        <p class="card-text display-4">{{ weekly_points }}</p>
-      </div>
-    </div>
-    <div class="card mb-4">
-      <div class="card-body">
-        <h5 class="card-title">Monthly Points</h5>
-        <p class="card-text display-4">{{ monthly_points }}</p>
-      </div>
-    </div>
-    <div class="card mb-4">
-      <div class="card-body">
-        <h5 class="card-title">Total Points</h5>
-        <p class="card-text display-4">{{ total_points }}</p>
-      </div>
-    </div>
-  </div>
 {% endblock %}

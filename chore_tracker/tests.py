@@ -1,40 +1,98 @@
+from datetime import timedelta
+
+import factory
+from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
-from django.contrib.auth.models import User
-from django.core.exceptions import ValidationError
-from .models import Child, Chore, ChoreAssignment
-from .forms import ChoreAssignmentForm
-import factory
 from factory.django import DjangoModelFactory
+
+from .forms import ChoreAssignmentForm
+from .models import Child, Chore, ChoreAssignment
+
 
 class UserFactory(DjangoModelFactory):
     class Meta:
         model = User
+
     username = factory.Sequence(lambda n: f'user{n}')
     email = factory.LazyAttribute(lambda o: f'{o.username}@example.com')
     password = factory.PostGenerationMethodCall('set_password', 'testpass123')
 
+
 class ChildFactory(DjangoModelFactory):
     class Meta:
         model = Child
+
     name = factory.Sequence(lambda n: f'Child {n}')
     age = factory.Faker('random_int', min=5, max=15)
+
 
 class ChoreFactory(DjangoModelFactory):
     class Meta:
         model = Chore
+
     name = factory.Sequence(lambda n: f'Chore {n}')
     description = factory.Faker('sentence')
     points = factory.Faker('random_int', min=1, max=10)
 
+
 class ChoreAssignmentFactory(DjangoModelFactory):
     class Meta:
         model = ChoreAssignment
+
     child = factory.SubFactory(ChildFactory)
     chore = factory.SubFactory(ChoreFactory)
     date_assigned = factory.LazyFunction(timezone.now)
     completed = False
+
+
+class ChildModelTests(TestCase):
+    def setUp(self):
+        self.child = Child.objects.create(name="Test Child", age=10)
+        self.chore1 = Chore.objects.create(name="Chore 1", points=5)
+        self.chore2 = Chore.objects.create(name="Chore 2", points=10)
+
+    def test_get_points(self):
+        # Create some completed chore assignments
+        ChoreAssignment.objects.create(
+            child=self.child,
+            chore=self.chore1,
+            completed=True,
+            date_completed=timezone.now().date()
+        )
+        ChoreAssignment.objects.create(
+            child=self.child,
+            chore=self.chore2,
+            completed=True,
+            date_assigned=timezone.now().date() - timedelta(days=4),
+            date_completed=timezone.now().date() - timedelta(days=2)
+        )
+        ChoreAssignment.objects.create(
+            child=self.child,
+            chore=self.chore1,
+            completed=True,
+            date_assigned=timezone.now().date() - timedelta(days=12),
+            date_completed=timezone.now().date() - timedelta(days=10)
+        )
+
+        self.assertEqual(self.child.get_points(period='day'), 5)
+        self.assertEqual(self.child.get_points(period='week'), 15)
+        self.assertEqual(self.child.get_points(period='month'), 20)
+        self.assertEqual(self.child.get_points(period='all'), 20)
+
+    def test_get_points_with_uncompleted_chores(self):
+        # Create an uncompleted chore assignment
+        ChoreAssignment.objects.create(
+            child=self.child,
+            chore=self.chore1,
+            completed=False,
+            date_completed=None
+        )
+
+        self.assertEqual(self.child.get_points(period='all'), 0)
+
 
 class ChoreAssignmentTests(TestCase):
     def setUp(self):
@@ -161,6 +219,7 @@ class ChoreAssignmentTests(TestCase):
             ["Date completed cannot be earlier than the date assigned."]
         )
 
+
 class ChoreTests(TestCase):
     def setUp(self):
         self.user = UserFactory()
@@ -203,6 +262,7 @@ class ChoreTests(TestCase):
         response = self.client.post(reverse('chore_delete', args=[self.chore.id]))
         self.assertEqual(response.status_code, 302, "Should redirect after successful deletion")
         self.assertEqual(Chore.objects.count(), chore_count - 1, "Should delete the chore")
+
 
 class ChildTests(TestCase):
     def setUp(self):

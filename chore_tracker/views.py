@@ -3,7 +3,6 @@ import logging
 from datetime import datetime, timedelta
 
 from django.contrib import messages
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import connection
 from django.db.models import Count
 from django.db.models.functions import TruncDate
@@ -12,7 +11,7 @@ from django.shortcuts import render, get_object_or_404
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views import View
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
 
 from .forms import ChoreForm, ChoreAssignmentForm
 from .models import Child, Chore, ChoreAssignment
@@ -210,17 +209,19 @@ class ChoreAssignmentCompleteView(UpdateView):
         return reverse_lazy('chore_assignment_list')
 
 
-class ChildPointsView(View):
-    def get(self, request, child_id):
-        child = get_object_or_404(Child, pk=child_id)
-        context = {
-            'child': child,
-            'daily_points': child.get_points(period='day'),
-            'weekly_points': child.get_points(period='week'),
-            'monthly_points': child.get_points(period='month'),
-            'total_points': child.get_points(period='all'),
-        }
-        return render(request, 'chore_tracker/child_points.html', context)
+class ChildPointsView(DetailView):
+    model = Child
+    template_name = 'chore_tracker/child_points.html'
+    context_object_name = 'child'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        child = self.object
+        context['daily_points'] = child.get_points(period='day')
+        context['weekly_points'] = child.get_points(period='week')
+        context['monthly_points'] = child.get_points(period='month')
+        context['total_points'] = child.get_points(period='all')
+        return context
 
 
 class CalendarView(View):
@@ -278,23 +279,3 @@ class CalendarView(View):
             'next_month': next_month,
         }
         return render(request, 'chore_tracker/calendar.html', context)
-
-
-
-
-
-
-
-
-
-class ChoreAssignmentUpdateView(UpdateView):
-    model = ChoreAssignment
-    form_class = ChoreAssignmentForm
-    template_name = 'chore_tracker/chore_assignment_form.html'
-    success_url = reverse_lazy('chore_assignment_list')
-
-
-class ChoreAssignmentDeleteView(LoginRequiredMixin, DeleteView):
-    model = ChoreAssignment
-    template_name = 'chore_tracker/chore_assignment_confirm_delete.html'
-    success_url = reverse_lazy('chore_assignment_list')

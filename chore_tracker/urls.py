@@ -4,7 +4,7 @@ from . import views
 urlpatterns = [
   path('children/', views.ChildListView.as_view(), name='child_list'),
   path('children/create/', views.ChildCreateView.as_view(), name='child_create'),
-  path('children/<int:child_id>/points/', views.ChildPointsView.as_view(), name='child_points'),
+  path('children/<int:pk>/points/', views.ChildPointsView.as_view(), name='child_points'),
   path('children/<int:child_id>/calendar/', views.CalendarView.as_view(), name='child_calendar'),
   path('children/<int:child_id>/calendar/<int:year>/<int:month>/', views.CalendarView.as_view(), name='child_calendar_date'),
   path('children/<int:child_id>/graph/', views.ChoreGraphView.as_view(), name='chore_graph'),

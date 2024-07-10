@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
@@ -14,6 +16,23 @@ class Child(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+
+    def get_points(self, period='all'):
+        end_date = timezone.now().date()
+        if period == 'day':
+            start_date = end_date
+        elif period == 'week':
+            start_date = end_date - timedelta(days=7)
+        elif period == 'month':
+            start_date = end_date - timedelta(days=30)
+        else:  # 'all'
+            start_date = None
+
+        assignments = self.choreassignment_set.filter(completed=True)
+        if start_date:
+            assignments = assignments.filter(date_completed__range=[start_date, end_date])
+
+        return sum(assignment.chore.points for assignment in assignments)
 
     def __str__(self):
         return self.name
